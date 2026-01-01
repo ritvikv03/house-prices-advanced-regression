@@ -1,0 +1,177 @@
+\documentclass[]{article}
+\usepackage{graphicx} % Required for inserting images
+\usepackage{float}
+\usepackage{amsmath}
+
+\title{GB 657 Final Project}
+\author{Abigail Hughes, Anujin Ganbaatar, Christine Lekishon, Ritvik Vasikarla}
+
+\usepackage{graphicx} % Required for inserting images
+\usepackage[margin=1in]{geometry}
+\usepackage{indentfirst}
+\usepackage{url}
+
+\title{\vspace{-50px}Predictive Modeling for Housing Prices: A Case Study with RCAA Realtors}
+\begin{document}
+
+\maketitle
+
+\section{Business Case \& Problem Framing}
+
+Our company, RCAA Realtors, aims to improve the speed, accuracy, and consistency of home value assessments. Currently, manual appraisals and underwriting processes are time-consuming, labor-intensive, and prone to human error, which can result in delayed decision-making, inconsistent pricing, and occasionally financial loss due to mispriced loans.
+By developing a predictive model for the sale price of a home, RCAA Realtors can:
+\begin{itemize}
+    \item Reduce manual appraisal costs by flagging properties where automated predictions are likely sufficient.
+    \item Minimize financial risk by identifying potential pre-approval or loan mispricing risks.
+    \item Provide more competitive and accurate listing recommendations, increasing customer trust and market efficiency.
+    \item Improve operational efficiency by reallocating human resources toward higher-value work.
+\end{itemize}
+The model would be integrated into the underwriting and listing pipeline. For each property, the model predicts the sale price and provides a prediction interval. Underwriters could then use this information to determine whether a full manual appraisal is required. Predictions could also be scored daily for new listings on the marketplace dashboard, giving real-time pricing recommendations. Overall, this approach would allow the firm to reduce losses from mispriced loans, improve decision-making speed, and enhance overall profitability.
+
+\section{Data Analysis \& Preprocessing}
+
+\subsection{Handling Missing Values}
+
+The Ames Housing dataset contains several variables with many missing values. The features with the highest proportion of missing values include Pool Quality (99.5\%), Miscellaneous feature not covered in other categories (96.3\%), Type of Alley Access (93.8\%), and Fence Quality (80.8\%). Most missing values are not random but instead reflect the absence of a particular property feature. For example, missing values in Pool Quality indicate that a home does not have a pool.
+To address missing values, we applied the following strategies:
+
+\begin{itemize}
+    \item Categorical "absence" features (mentioned above): imputed with "None".
+    \item Numeric features like the linear feet of street connected to property (LotFrontage): imputed using the median value per neighborhood.
+    \item Garage and basement features: categorical missing values were replaced with "None", numeric missing values replaced with 0 or the median.
+    \item Rare missingness (e.g., Electrical System Type): imputed with the most frequent value.
+\end{itemize}
+
+This approach ensures the dataset is clean while preserving meaningful structural information about the presence or absence of property features.
+
+\subsection{Target Distribution}
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.45\textwidth}
+        \includegraphics[width=\linewidth]{image.png}
+        \caption{Distribution of SalePrice}
+        \label{fig:saleprice}
+    \end{minipage}%
+    \hfill
+    \begin{minipage}{0.5\textwidth}
+
+        The distribution of SalePrice is noticeably right-skewed, with most homes priced between \$120,000 and \$200,000. High-end properties are less frequent, which has implications for modeling. Fewer expensive homes mean models have less training signal in this range, potentially leading to underestimation. Many regression methods also assume the target is approximately normal. A log transformation (\texttt{log1p}) stabilizes variance and improves model performance. Additionally, heteroskedasticity (price spread increasing with value) is reduced by the log transform. Overall, these preprocessing choices improve predictive accuracy and model calibration.
+    \end{minipage}
+\end{figure}
+
+\subsection{Correlation Analysis}
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.45\textwidth}
+        \includegraphics[width=\linewidth]{Screenshot 2025-12-04 at 8.59.40 PM.png}
+        \caption{Correlation with SalePrice}
+        \label{fig:correlation}
+    \end{minipage}%
+    \hfill
+    \begin{minipage}{0.5\textwidth}
+Correlation analysis reveals that the strongest predictors of sale price are:
+
+\begin{itemize}
+    \item Overall Quality (0.79)
+    \item Above Ground Square Footage (0.71)
+    \item Garage Cars Capacity/ Garage Area(0.62–0.64)
+    \item Basement Square Footage(0.61)
+    \item Full Baths/ Total Rooms Above Ground (0.53–0.56)
+    \item Year Built / Year Remodeled (0.51–0.52)
+\end{itemize}
+
+These results are consistent with expectations from real estate appraisal: higher-quality, larger homes with more amenities and newer construction tend to sell for higher prices. Tree-based models are well-suited to capture these relationships due to their ability to handle nonlinearity and feature interactions.
+    \end{minipage}
+\end{figure}
+
+\subsection{Feature Encoding and Feature Engineering}
+
+Several quality-related variables (e.g., External Quality, Basement Quality, Kitchen Quality) have an inherent ordering (Poor, Fair, Typical, Good, Excellent). We mapped these textual labels to numeric scores (None=0, Po=1, Fa=2, TA=3, Gd=4, Ex=5) to allow models to interpret their ordinal relationships correctly. We created additional features to capture more information from the raw data:
+
+\begin{itemize}
+    \item TotalSF: Sum of basement and above-ground living areas.
+    \item HouseAge / RemodAge: Age since construction and last remodel.
+    \item TotalBath: Full bathrooms + 0.5 × half bathrooms.
+    \item TotalPorchSF: Sum of all porch areas.
+\end{itemize}
+
+These engineered features consolidate multiple related attributes into meaningful metrics that are likely to influence the sale price. The remaining categorical variables without inherent order were converted to binary indicators using one-hot encoding. This allows tree-based models to leverage categorical information without assuming ordinality.
+
+\subsection{Target Transformation and Train Test Split}
+
+To address skewness in SalePrice, we applied a log transformation (np.log1p). This reduces the influence of extreme values and stabilizes variance, improving model performance and interpretability. The Kaggle data set we used provided us with an inherent training and testing split. For tree-based models, no feature scaling was necessary, but for linear models (Ridge/LASSO/ElasticNet), we used standardized numeric features via a pre-processing pipeline to ensure stable coefficients.
+\section{Modeling \& Results}
+
+After completion of the preprocessing, we evaluated a range of models to determine the most effective approach to predict home sale prices. Because the business objective requires both accuracy and reliability, we began with a simple baseline before progressing to more advanced machine learning methods.
+
+\subsection{Baseline and Linear Models}
+
+Our baseline model predicted the mean of the log-transformed \texttt{SalePrice}, yielding a cross-validated RMSE of 0.398. This benchmark establishes the minimum improvement required for an automated valuation system to provide business value. Next, we evaluated regularized linear models, including Ridge, LASSO, and ElasticNet. These models assume linear relationships, but apply penalties to reduce overfitting and enhance interpretability. All three performed substantially better than the baseline, with RMSE values around 0.113--0.114. This confirms that much of the variation in home prices can be explained by linear trends and that engineered features such as \texttt{TotalSF} and \texttt{TotalBath} capture a meaningful signal.
+
+\subsection{Tree-Based Models}
+
+Linear methods, however, are limited in their ability to capture nonlinear interactions such as diminishing returns to square footage or interactions between neighborhood and quality. To address this, we evaluated tree-based ensemble methods: Random Forests, Gradient Boosting, XGBoost, and LightGBM. Random Forest achieved an RMSE of 0.130, outperforming the baseline by 67.4\% but underperforming linear models due to its tendency to average. Its inclusion in the ensemble adds diversity. We applied 5-Fold GridSearchCV to XGBoost and LightGBM. For XGBoost, we tuned max\_depth [4,5], min\_child\_weight [1,3], subsample [0.7,0.8], and colsample\_bytree [0.7,0.8]. For LightGBM, we tuned max\_depth [4,5], num\_leaves [15,20,25], and min\_child\_samples [15,20]. The tuned XGBoost achieved RMSE 0.115; the tuned LightGBM achieved 0.118.
+Although GradientBoostingRegressor achieved the best initial RMSE (0.112), it was excluded from tuning due to lack of parallel processing support (n\_jobs), making GridSearchCV computationally prohibitive (4 hours vs. 15 minutes for XGBoost). The RMSE difference of 0.003 is within the CV variance, and GBR still contributes 20\% \ to the final ensemble.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.5\textwidth]{model_comparison.png}
+\caption{Model performance comparison across all algorithms.}
+\label{fig:model-compare}
+\end{figure}
+
+\subsection{Ensemble Model}
+
+To reduce model-specific bias, we created a weighted ensemble: XGBoost (30\%), LightGBM (25\%), Gradient Boosting (20\%), Random Forest (10\%), and Ridge/Lasso/ElasticNet (15\% combined). Tuned models receive 55\% total weight. The ensemble achieved RMSE 0.111—a 71.1\% improvement over baseline. This performance meets the accuracy threshold required for RCAA Realtors to use automated estimates for preliminary underwriting and listing decisions. RMSE on the log-transformed scale corresponds to approximately 10\% average pricing error, which is acceptable for automated underwriting.
+
+\subsection{Feature Importance and Business Interpretation}
+
+To understand what the model learned, we examined feature importance from the Gradient Boosting and XGBoost models. Figure 4 displays the top predictors.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.6\textwidth]{feature_importance.png}
+\caption{Feature importance from the XGBoost model.}
+\label{fig:featimp}
+\end{figure}
+
+Overall Quality is the dominant predictor, accounting for over 10\% of total model influence. This aligns with real estate appraisal logic: the quality of materials and finishes fundamentally determines a home's value. More interestingly, several of the top predictors—\texttt{Quality$\times$Area}, \texttt{OverallQual\_Sq}, and \texttt{OverallQual\_Cu}—are engineered features. Their high importance confirms that the model is capturing nonlinear relationships and validates our feature engineering strategy. Size-related variables such as \texttt{TotalSF}, \texttt{GrLivArea}, and \texttt{GarageCars} also rank highly. Neighborhood effects, particularly in higher-value areas, play a meaningful role.
+
+\subsubsection*{Business Meaning}
+
+These findings have clear implications for pricing and renovation strategy:
+
+\begin{itemize}
+    \item For pricing new listings: overall quality and square footage are the primary value drivers.
+    \item For renovation ROI: upgrades to interior/exterior quality, added living area, and garage capacity yield the highest returns.
+    \item A key insight is that \textbf{quality often outweighs quantity}: a smaller, high-quality home can outperform a much larger but lower-quality property.
+\end{itemize}
+
+This interpretability strengthens the model's usefulness in underwriting workflows and client-facing tools.
+\subsection*{Kaggle Competition}
+Upon our first entry into the leader board, we placed 579th out of the 6064 current competitors. This ranked our model in the top 10\% of all models submitted. While there is room for improvement, this shows that the ensemble approach used captured a large portion of the variability in the houses sale prices.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=1\textwidth]{Ranking.png}
+\caption{Proof of Kaggle Submission.}
+\label{fig:featimp}
+\end{figure}
+
+\section{Limitations}
+
+While the results are strong, several limitations must be acknowledged:
+
+\begin{itemize}
+    \item \textbf{Geographic scope:} All training data comes from Ames, Iowa. The model must be retrained for other housing markets.
+    \item \textbf{Lack of economic variables:} Interest rates, macroeconomic cycles, and seasonality are not included, limiting accuracy during volatile market conditions.
+    \item \textbf{Sparse luxury data:} High-end homes are underrepresented, increasing uncertainty for top-tier price predictions.
+\end{itemize}
+
+These limitations must be addressed before deploying the model in high-stakes operational settings.
+
+\section{Conclusion \& Business Impact}
+
+Our ensemble model provides accurate, fast, and scalable home value predictions suitable for preliminary underwriting and automated listing recommendations. With an RMSE of 0.111 on the log scale—a roughly 10\% average error in dollar terms—the model offers a reliable foundation for decision support at RCAA Realtors. Implementing this system could reduce appraisal costs by \$300--\$500 per standard property, generating an estimated \$1.2 million in annual savings. Predictions are instantaneous, improving decision-making speed and reducing loan mispricing risk. Future improvements should incorporate external data sources and implement production monitoring tools to track data drift. With these enhancements, the system can materially improve operational efficiency, reduce risk, and strengthen client trust in RCAA Realtors' valuation processes.
+\end{document}
