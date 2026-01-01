@@ -13,7 +13,7 @@ This project was developed as part of GB 657 Final Project by Abigail Hughes, An
 - **Provide competitive pricing** recommendations to increase customer trust
 - **Improve operational efficiency** by reallocating resources to higher-value work
 
-### Model Performance 🏆
+### Model Performance 
 
 - **Kaggle Rank**: **51 out of 5,702** competitors
 - **Percentile**: **Top 1%** (99.1th percentile)
@@ -394,13 +394,6 @@ This project was completed as academic coursework. For questions or collaboratio
 
 This project is for educational purposes. The dataset is provided by Kaggle under their competition terms of use.
 
-## Acknowledgments
-
-- **Kaggle** for hosting the competition and providing the dataset
-- **Dean De Cock** for compiling the Ames Housing dataset
-- **GB 657 Course Instructors** for guidance and support
-- **scikit-learn and XGBoost communities** for excellent documentation
-
 ## References
 
 1. De Cock, D. (2011). "Ames, Iowa: Alternative to the Boston Housing Data as an End of Semester Regression Project." *Journal of Statistics Education*, 19(3).
@@ -410,5 +403,4 @@ This project is for educational purposes. The dataset is provided by Kaggle unde
 ---
 
 **Last Updated**: January 2026
-**Status**: Complete ✅
-**Kaggle Ranking**: **51 / 5,702** (Top 1%) 🥇
+**Kaggle Ranking**: **51 / 5,702** (Top 1%) 
